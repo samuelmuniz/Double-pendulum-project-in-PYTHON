@@ -1,11 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sympy
+import pygame
+
+
+
+white = (255,255,255)
+black = (0,0,0)
+red = (255,0,0)
+blue = (0,0,255)
+orig = (400,200)
 
 
 class double:
 
-    def __init__(self,m1 = 1,m2 = 1,l1 = 1,l2 = 1):
+    def __init__(self,m1 = 0.1,m2 = 0.5,l1 = 150,l2 = 150):
         # Pendulum Parameters:
         self.m_1 = m1  # kg
         self.m_2 = m2  # kg
@@ -13,15 +22,15 @@ class double:
         self.l_2 = l2  # m
         self.g = 9.8  # m/s^2
         self.th1_vec = [1]
-        self.dth1_vec = [0]
+        self.dth1_vec = [1]
         self.th2_vec = [0]
-        self.dth2_vec = [1]
+        self.dth2_vec = [0]
         self.x1_vec = []
         self.y1_vec = []
         self.x2_vec = []
         self.y2_vec = []
 
-    def simulation(self,dt):
+    def plot(self,dt):
         # Create Symbols for Time:
         t = sympy.Symbol('t')  # Creates symbolic variable t
 
@@ -29,9 +38,13 @@ class double:
         th1 = sympy.Function('th1')(t)
         th2 = sympy.Function('th2')(t)   
 
+        #origini x axis, origin y axis
+
         # Position Equation: r = [x, y]
-        r1 = np.array([self.l_1 * sympy.sin(th1), -self.l_1 * sympy.cos(th1)])  # Position of first pendulum
-        r2 = np.array([self.l_2 * sympy.sin(th2) + r1[0], -self.l_2 * sympy.cos(th2) + r1[1]])  # Position of second pendulum
+        # Position of first pendulum
+        r1 = np.array([orig[0] + self.l_1 * sympy.sin(th1), orig[1] + self.l_1 * sympy.cos(th1)])
+        # Position of second pendulum  
+        r2 = np.array([self.l_2 * sympy.sin(th2) + r1[0], self.l_2 * sympy.cos(th2) + r1[1]])  
 
         # Velocity Equation: d/dt(r) = [dx/dt, dy/dt]
         v1 = np.array([r1[0].diff(t), r1[1].diff(t)])  # Velocity of first pendulum
@@ -39,7 +52,7 @@ class double:
 
         # Energy Equations:
         T = 1/2 * self.m_1 * np.dot(v1, v1) + 1/2 * self.m_2 * np.dot(v2, v2)  # Kinetic Energy
-        V = self.m_1 * self.g * r1[1] + self.m_2 * self.g * r2[1] # Potential Energy
+        V = - (self.m_1 * self.g * r1[1] + self.m_2 * self.g * r2[1]) # Potential Energy
         L = T - V  # Lagrangian
 
         # Lagrange Terms:
@@ -97,7 +110,7 @@ class double:
         r1 = sympy.utilities.lambdify(replacements, r1, "numpy")
         r2 = sympy.utilities.lambdify(replacements, r2, "numpy")
 
-        sim_time = 10
+        sim_time = 100
         time = np.arange(0, sim_time, dt)
         sim_length = len(time)
 
@@ -107,7 +120,7 @@ class double:
         B = np.array([0, 0])
 
         # Euler Integration:
-        for i in range(1, sim_length):
+        for i in range(1, sim_length + 1):
             # Animation States:
             x1_vec, y1_vec = r1(self.th1_vec[i-1], self.dth1_vec[i-1], self.th2_vec[i-1], self.dth2_vec[i-1])
             self.x1_vec.append(x1_vec)
@@ -128,11 +141,72 @@ class double:
             self.dth1_vec.append(self.dth1_vec[i-1] + ddth1 * dt)
             self.th2_vec.append(self.th2_vec[i-1] + self.dth2_vec[i-1] * dt)
             self.dth2_vec.append(self.dth2_vec[i-1] + ddth2 * dt)
+
+
             
+        
+        # plt.figure(1)
+        # # 300 =< x1 <= 500
+        # plt.plot(time, self.x1_vec, label = "Pendulum 1 - x axis")
+        # # -100 =< y1 <= 100
+        # plt.plot(time, self.y1_vec, label = "Pendulum 1 - y axis")
+        # plt.legend()
+
+        # plt.figure(2)
+        # # 200 =< x2 <= 600
+        # plt.plot(time, self.x2_vec, label = "Pendulum 2 - x axis")
+        # # -200 =< y2 <= 200
+        # plt.plot(time, self.y2_vec, label = "Pendulum 2 - y axis")
+        # plt.legend()
+
+        # plt.show()
+
+    def simulate(self):
+        # Pygame setup
+        pygame.init()
+        width, height = 800, 600
+        screen = pygame.display.set_mode((width, height))
+        clock = pygame.time.Clock()
+        # Animation loop
+        running = True
+        index = 0
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+            # Draw the first pendulum
+            x1, y1 = self.x1_vec[index], self.y1_vec[index]  # Get the x, y coordinates of the first pendulum at the current index
+            x1,y1 = int(x1),int(y1) 
+            pygame.draw.circle(screen, red, (x1 , y1), 10)
+
+            #Draw the first rod
+            pygame.draw.line(screen, black , orig, (int(x1) , int(y1)), 2)
+
+            # Draw the second pendulum
+            x2, y2 = self.x2_vec[index], self.y2_vec[index]  # Get the x, y coordinates of the second pendulum at the current index
+            pygame.draw.circle(screen, blue, (int(x2) , int(y2)), 10)
+
+            #Draw the second rod
+            pygame.draw.line(screen, black , (int(x1) , int(y1)), (int(x2) , int(y2)),  2)
+
+            
+            # Frame rate
+            clock.tick(120)  
+            pygame.display.flip()
+            screen.fill(white)
+
+            # Update the index for the next frame
+            index = index + 1
+
+        pygame.quit()
+
+
 
 def run():
     pendulum = double()
-    pendulum.simulation(0.001)
+    pendulum.plot(0.001)
+    pendulum.simulate()
 
 
 
