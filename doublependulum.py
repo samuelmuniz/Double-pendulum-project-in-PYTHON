@@ -9,21 +9,21 @@ white = (255,255,255)
 black = (0,0,0)
 red = (255,0,0)
 blue = (0,0,255)
-orig = (400,200)
+orig = (300,100)
 
 
 class double:
 
-    def __init__(self,m1 = 0.1,m2 = 0.5,l1 = 150,l2 = 150):
+    def __init__(self,m1 = 0.1,m2 = 0.5,l1 = 100,l2 = 100):
         # Pendulum Parameters:
         self.m_1 = m1  # kg
         self.m_2 = m2  # kg
         self.l_1 = l1  # m
         self.l_2 = l2  # m
         self.g = 9.8  # m/s^2
-        self.th1_vec = [1]
-        self.dth1_vec = [1]
-        self.th2_vec = [0]
+        self.th1_vec = [1.57]
+        self.dth1_vec = [0]
+        self.th2_vec = [1.57]
         self.dth2_vec = [0]
         self.x1_vec = []
         self.y1_vec = []
@@ -44,7 +44,7 @@ class double:
         # Position of first pendulum
         r1 = np.array([orig[0] + self.l_1 * sympy.sin(th1), orig[1] + self.l_1 * sympy.cos(th1)])
         # Position of second pendulum  
-        r2 = np.array([self.l_2 * sympy.sin(th2) + r1[0], self.l_2 * sympy.cos(th2) + r1[1]])  
+        r2 = np.array([r1[0] + self.l_2 * sympy.sin(th2) , r1[1] + self.l_2 * sympy.cos(th2)])  
 
         # Velocity Equation: d/dt(r) = [dx/dt, dy/dt]
         v1 = np.array([r1[0].diff(t), r1[1].diff(t)])  # Velocity of first pendulum
@@ -119,15 +119,18 @@ class double:
         A = np.array([[0, 0], [0, 0]])
         B = np.array([0, 0])
 
+        batch = 100
         # Euler Integration:
         for i in range(1, sim_length + 1):
             # Animation States:
             x1_vec, y1_vec = r1(self.th1_vec[i-1], self.dth1_vec[i-1], self.th2_vec[i-1], self.dth2_vec[i-1])
-            self.x1_vec.append(x1_vec)
-            self.y1_vec.append(y1_vec) 
+            if i % batch == 0 :
+                self.x1_vec.append(x1_vec)
+                self.y1_vec.append(y1_vec) 
             x2_vec, y2_vec = r2(self.th1_vec[i-1], self.dth1_vec[i-1], self.th2_vec[i-1], self.dth2_vec[i-1])
-            self.x2_vec.append(x2_vec)
-            self.y2_vec.append(y2_vec) 
+            if i % batch == 0 :
+                self.x2_vec.append(x2_vec)
+                self.y2_vec.append(y2_vec) 
             # Evaluate Dynamics:
             A[0, 0] = A1(self.th1_vec[i-1], self.dth1_vec[i-1], self.th2_vec[i-1], self.dth2_vec[i-1])
             A[0, 1] = A2(self.th1_vec[i-1], self.dth1_vec[i-1], self.th2_vec[i-1], self.dth2_vec[i-1])
@@ -142,8 +145,10 @@ class double:
             self.th2_vec.append(self.th2_vec[i-1] + self.dth2_vec[i-1] * dt)
             self.dth2_vec.append(self.dth2_vec[i-1] + ddth2 * dt)
 
-
-            
+        self.x1_vec = np.array(self.x1_vec, dtype = 'int')
+        self.y1_vec = np.array(self.y1_vec, dtype = 'int')
+        self.x2_vec = np.array(self.x2_vec, dtype = 'int')
+        self.y2_vec = np.array(self.y2_vec, dtype = 'int')
         
         # plt.figure(1)
         # # 300 =< x1 <= 500
@@ -164,12 +169,16 @@ class double:
     def simulate(self):
         # Pygame setup
         pygame.init()
-        width, height = 800, 600
+        width, height = 600,400
         screen = pygame.display.set_mode((width, height))
         clock = pygame.time.Clock()
+
+        
+   
         # Animation loop
         running = True
         index = 0
+
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -177,22 +186,21 @@ class double:
 
             # Draw the first pendulum
             x1, y1 = self.x1_vec[index], self.y1_vec[index]  # Get the x, y coordinates of the first pendulum at the current index
-            x1,y1 = int(x1),int(y1) 
             pygame.draw.circle(screen, red, (x1 , y1), 10)
 
             #Draw the first rod
-            pygame.draw.line(screen, black , orig, (int(x1) , int(y1)), 2)
+            pygame.draw.line(screen, black , orig, (x1 , y1), 2)
 
             # Draw the second pendulum
             x2, y2 = self.x2_vec[index], self.y2_vec[index]  # Get the x, y coordinates of the second pendulum at the current index
-            pygame.draw.circle(screen, blue, (int(x2) , int(y2)), 10)
+            pygame.draw.circle(screen, blue, (x2, y2), 10)
 
             #Draw the second rod
-            pygame.draw.line(screen, black , (int(x1) , int(y1)), (int(x2) , int(y2)),  2)
+            pygame.draw.line(screen, black , (x1,y1), (x2, y2),  2)
 
             
             # Frame rate
-            clock.tick(120)  
+            clock.tick(60)  
             pygame.display.flip()
             screen.fill(white)
 
